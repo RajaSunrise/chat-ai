@@ -1,0 +1,224 @@
+{% extends "base.html" %}
+
+{% block title %}UML Diagram Chat{% endblock %}
+
+{% block content %}
+
+    <link rel="stylesheet" href="{{ url_for('static', path='css/sweetalert2.min.css') }}">
+    
+    <style>
+        :root {
+            --primary-color: #ffffff;
+            --secondary-color: #cccccc;
+        }
+
+        .gemini-to-code-container {
+            max-width: 800px;
+            margin: 0 auto;
+            padding: 20px;
+            background-color: #343541;
+            border-radius: 8px;
+            box-shadow: 0 2px 10px rgba(0, 0, 0, 0.1);
+        }
+
+        h1 {
+            color: var(--primary-color);
+            margin-bottom: 20px;
+        }
+
+        p {
+            margin-bottom: 20px;
+        }
+
+        .file-input-container {
+            margin-bottom: 20px;
+            display: flex;
+            align-items: center;
+        }
+
+        .file-input-label {
+            display: inline-block;
+            padding: 10px 15px;
+            background-color: #2980b9;
+            color: black;
+            border-radius: 5px;
+            cursor: pointer;
+            transition: background-color 0.3s;
+            margin-right: 10px;
+        }
+
+        .file-input-label:hover {
+            background-color: #2346e4;
+        }
+
+        .file-name {
+            color: #fff;
+            font-size: 14px;
+        }
+
+        #fileInput {
+            display: none;
+        }
+
+        .submit-btn {
+            display: block;
+            width: 100%;
+            padding: 10px;
+            background: rgb(68, 66, 66);
+            color: white;
+            border: none;
+            border-radius: 5px;
+            cursor: pointer;
+            transition: background-color 0.3s;
+        }
+
+        .submit-btn:hover {
+            background-color: #34495e;
+        }
+
+        .loading {
+            display: none;
+            margin-top: 20px;
+            text-align: center;
+            font-style: italic;
+            color: var(--secondary-color);
+        }
+
+        .result-container {
+            margin-top: 30px;
+        }
+
+        .code-display {
+            background-color: #f8f8f8;
+            border: 1px solid #ddd;
+            border-radius: 5px;
+            padding: 15px;
+            overflow-x: auto;
+            white-space: pre-wrap;
+            word-wrap: break-word;
+        }
+
+        .copy-btn {
+            margin-top: 10px;
+            padding: 10px;
+            background-color: black;
+            color: rgb(250, 250, 250);
+            border: none;
+            border-radius: 5px;
+            cursor: pointer;
+            transition: background-color 0.3s;
+        }
+
+        .copy-btn:hover {
+            background-color: #39c951;
+        }
+    </style>
+
+<div class="gemini-to-code-container">
+    <h1>Image UI to Code</h1>
+    <p>Upload an image of a UI design, and we'll generate the HTML and CSS code for you!</p>
+
+    <form id="uploadForm" enctype="multipart/form-data">
+        <div class="file-input-container">
+            <input type="file" id="fileInput" accept="image/*" required>
+            <label for="fileInput" class="file-input-label">Choose an image</label>
+            <span id="fileName" class="file-name"></span>
+        </div>
+        <button type="submit" class="submit-btn">Generate UI Code</button>
+    </form>
+
+    <div id="loading" class="loading">Processing... Please wait.</div>
+
+    <div class="result-container">
+        <h2>Generated HTML:</h2>
+        <pre id="generatedHTML" class="code-display"></pre>
+        <button id="copyCodeBtn" class="copy-btn">Copy Code</button>
+    </div>
+</div>
+
+<script src="https://cdn.jsdelivr.net/npm/sweetalert2@11"></script>
+<script>
+document.getElementById('fileInput').addEventListener('change', (e) => {
+    const fileName = e.target.files[0]?.name || '';
+    document.getElementById('fileName').textContent = fileName;
+});
+
+document.getElementById('uploadForm').addEventListener('submit', async (e) => {
+    e.preventDefault();
+    const fileInput = document.getElementById('fileInput');
+    const loading = document.getElementById('loading');
+    const generatedHTML = document.getElementById('generatedHTML');
+    const copyCodeBtn = document.getElementById('copyCodeBtn');
+
+    if (fileInput.files.length === 0) {
+        Swal.fire({
+            icon: 'error',
+            title: 'Oops...',
+            text: 'Please select an image file.'
+        });
+        return;
+    }
+
+    const formData = new FormData();
+    formData.append('file', fileInput.files[0]);
+
+    loading.style.display = 'block';
+    generatedHTML.textContent = '';
+    copyCodeBtn.style.display = 'none';
+
+    try {
+        const response = await fetch('/generate_ui', {
+            method: 'POST',
+            body: formData
+        });
+
+        if (!response.ok) {
+            throw new Error('Network response was not ok');
+        }
+
+        const data = await response.json();
+        generatedHTML.textContent = data.html;
+        copyCodeBtn.style.display = 'block';
+    } catch (error) {
+        console.error('Error:', error);
+        Swal.fire({
+            icon: 'error',
+            title: 'Oops...',
+            text: 'An error occurred while processing the image.'
+        });
+    } finally {
+        loading.style.display = 'none';
+    }
+});
+
+document.getElementById('copyCodeBtn').addEventListener('click', () => {
+    const generatedHTML = document.getElementById('generatedHTML');
+    const range = document.createRange();
+    range.selectNodeContents(generatedHTML);
+    const selection = window.getSelection();
+    selection.removeAllRanges();
+    selection.addRange(range);
+
+    try {
+        document.execCommand('copy');
+        Swal.fire({
+            icon: 'success',
+            title: 'Success',
+            text: 'Code copied to clipboard!',
+            confirmButtonText: 'OK'
+        });
+    } catch (err) {
+        console.error('Error copying text: ', err);
+        Swal.fire({
+            icon: 'error',
+            title: 'Error',
+            text: 'Failed to copy code.',
+            confirmButtonText: 'OK'
+        });
+    }
+    selection.removeAllRanges();
+});
+</script>
+
+<script src="{{ url_for('static', path='js/sweetalert2.all.min.js') }}"></script>
+{% endblock %}

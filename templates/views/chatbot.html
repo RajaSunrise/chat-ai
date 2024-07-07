@@ -1,0 +1,205 @@
+{% extends "base.html" %}
+
+{% block title %}Chatbot AI{% endblock %}
+
+{% block content %}
+    <link rel="stylesheet" href="{{ url_for('static', path='css/chatbot.css') }}">
+    
+    <link rel="stylesheet" href="{{ url_for('static', path='css/sweetalert2.min.css') }}">
+
+<div class="chat-container">
+    <div class="header">
+        <h1>Chat-v2</h1>
+        <button id="clearChatButton" class="clear-button" title="Clear Chat">
+            <img src="{{ url_for('static', path='icons/delete.png') }}" alt="" style="width: 30px; height: 30px;">
+        </button>
+    </div>
+
+    <div class="chat-content">
+        <div id="chatHistory" class="chat-history"></div>
+    </div>
+
+    <div id="suggestedPrompts" class="suggested-prompts">
+        <div class="prompt-cards">
+            <div class="prompt-card" data-prompt="Undang teman ke pernikahanmu">
+                <span class="icon"><img src="{{ url_for('static', path='icons/message.png')}}" alt="" style="width: 30px; height: 30px;"></span>
+                <p>Undang teman ke pernikahan</p>
+            </div>
+            <div class="prompt-card" data-prompt="Cari jawaban yang anda butuhkan saat ini">
+                <span class="icon"><img src="{{ url_for('static', path='icons/graduation.png')}}" alt="" style="width: 30px; height: 30px;"></span>
+                <p>Cari jawaban yang anda butuhkan</p>
+            </div>
+            <div class="prompt-card" data-prompt="Ajukan ide yang ada di pikiranmu sekarang">
+                <span class="icon"><img src="{{ url_for('static', path='icons/idea.png')}}" alt="" style="width: 30px; height: 30px;"></span>
+                <p>Ajukan ide yang ada di pikiranmu</p>
+            </div>
+            <div class="prompt-card" data-prompt="Cari resep masakan yang kamu inginkan">
+                <span class="icon"><img src="{{ url_for('static', path='icons/food.png')}}" alt="" style="width: 30px; height: 30px;"></span>
+                <p>Cari resep masakan yang kamu inginkan</p>
+            </div>
+        </div>
+    </div>
+</div>
+
+<div class="chat-form-container">
+    <form id="chatForm" class="chat-form">
+        <div class="form-container">
+            <div class="input-area">
+                <div class="text-area">
+                    <textarea id="userInput" tabindex="0" data-id="root" dir="auto" rows="1" placeholder="Send a Message" class="chat-input" required></textarea>
+                </div>
+                <button type="submit" class="send-button">
+                    <img src="{{ url_for('static', path='icons/send.png')}}" alt="" style="width: 24px; height: 24px;">
+                </button>
+            </div>
+        </div>
+    </form>
+</div>
+
+
+<script src="{{ url_for('static', path='js/highlight.min.js') }}"></script>
+
+<script src="{{ url_for('static', path='js/sweetalert2.all.min.js') }}"></script>
+
+<script>
+function escapeHtml(unsafe) {
+    return unsafe
+         .replace(/&/g, "&amp;")
+         .replace(/</g, "&lt;")
+         .replace(/>/g, "&gt;")
+         .replace(/"/g, "&quot;")
+         .replace(/'/g, "&#039;");
+}
+
+function formatMessage(message) {
+    const codeBlockRegex = /```(\w+)?\n([\s\S]*?)```/g;
+    const boldRegex = /\*\*\*(.*?)\*\*\*/g;
+    const boldLargeRegex = /\*\*(.*?)\*\*/g;
+    const boldLargerRegex = /\*(.*?)\*/g;
+    let formattedMessage = message;
+    formattedMessage = formattedMessage.replace(codeBlockRegex, (match, language, code) => {
+        return `<pre><code class="language-${language || 'plaintext'}">${code.trim()}</code><button class="copy-button"><span class="copy-text">Copy</span><span class="checkmark">✓</span></button></pre>`;
+    });
+    formattedMessage = formattedMessage.replace(boldRegex, '<span class="bold-italic">$1</span>');
+    formattedMessage = formattedMessage.replace(boldLargeRegex, '<span class="bold-large">$1</span>');
+    formattedMessage = formattedMessage.replace(boldLargerRegex, '<span class="bold-larger">$1</span>');
+    return formattedMessage;
+}
+
+document.getElementById('chatForm').addEventListener('submit', async (e) => {
+    e.preventDefault();
+    const userInput = document.getElementById('userInput');
+    const chatHistory = document.getElementById('chatHistory');
+    const userMessage = userInput.value.trim();
+
+    if (userMessage) {
+        document.getElementById('suggestedPrompts').style.display = 'none';
+        chatHistory.innerHTML += `
+            <div class="message user-message">
+                <div class="message-content">${escapeHtml(userMessage)}</div>
+                <div class="avatar">U</div>
+            </div>`;
+        userInput.value = '';
+
+        const loadingIndicator = document.createElement('div');
+        loadingIndicator.className = 'message ai-message';
+        loadingIndicator.innerHTML = '<div class="avatar">A</div><div class="message-content"><span class="loading"></span></div>';
+        chatHistory.appendChild(loadingIndicator);
+
+        try {
+            const response = await fetch('/chat', {
+                method: 'POST',
+                headers: {
+                    'Content-Type': 'application/json',
+                },
+                body: JSON.stringify({ message: userMessage }),
+            });
+
+            if (!response.ok) {
+                throw new Error('Network response was not ok');
+            }
+            const data = await response.json();
+            chatHistory.removeChild(loadingIndicator);
+            chatHistory.innerHTML += `
+                <div class="message ai-message">
+                    <div class="avatar">A</div>
+                    <div class="message-content">${formatMessage(data.response)}</div>
+                </div>`;
+
+            document.querySelectorAll('pre code').forEach((block) => {
+                hljs.highlightElement(block);
+            });
+
+            addCopyButtonListeners();
+        } catch (error) {
+            console.error('Error:', error);
+        }
+        chatHistory.scrollTop = chatHistory.scrollHeight;
+    }
+});
+
+function addCopyButtonListeners() {
+    document.querySelectorAll('.copy-button').forEach(button => {
+        button.addEventListener('click', () => {
+            const codeBlock = button.closest('pre').querySelector('code');
+            const code = codeBlock.textContent;
+            
+            navigator.clipboard.writeText(code).then(() => {
+                button.classList.add('copied');
+                Swal.fire({
+                    icon: 'success',
+                    title: 'Success',
+                    text: 'Code copied to clipboard!',
+                    confirmButtonText: 'OK'
+                });
+                setTimeout(() => {
+                    button.classList.remove('copied');
+                }, 2000);
+            }).catch(err => {
+                console.error('Failed to copy: ', err);
+                Swal.fire({
+                    icon: 'error',
+                    title: 'Error',
+                    text: 'Failed to copy code.',
+                    confirmButtonText: 'OK'
+                });
+            });
+        });
+    });
+}
+
+document.querySelectorAll('.prompt-card').forEach(card => {
+    card.addEventListener('click', () => {
+        const promptText = card.getAttribute('data-prompt');
+        document.getElementById('userInput').value = promptText;
+    });
+});
+
+
+document.getElementById('clearChatButton').addEventListener('click', () => {
+        Swal.fire({
+            title: 'Kamu Serius?',
+            text: "Beneran Kamu ingin hapus history!",
+            icon: 'warning',
+            showCancelButton: true,
+            confirmButtonColor: '#3085d6',
+            cancelButtonColor: '#d33',
+            confirmButtonText: 'Iya, hapus'
+        }).then((result) => {
+            if (result.isConfirmed) {
+                document.getElementById('chatHistory').innerHTML = '';
+                Swal.fire(
+                    'Berhasil',
+                    'History kamu sudah di hapus',
+                    'success'
+                )
+            }
+        });
+    });
+
+// Initialize Highlight.js
+hljs.highlightAll();
+
+addCopyButtonListeners();
+</script>
+{% endblock %}

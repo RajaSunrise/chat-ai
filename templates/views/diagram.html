@@ -1,0 +1,166 @@
+{% extends "base.html" %}
+
+{% block title %}UML Diagram Chat{% endblock %}
+
+{% block content %}
+
+    <link rel="stylesheet" href="{{ url_for('static', path='css/diagram.css') }}">
+    <link rel="stylesheet" href="{{ url_for('static', path='css/sweetalert2.min.css') }}">
+    <script src="https://cdn.jsdelivr.net/npm/mermaid/dist/mermaid.min.js"></script>
+
+    <div class="chat-container">
+        <div class="header">
+            <h1>UML Diagram Chat</h1>
+            <button id="clearChatButton" class="clear-button" title="Clear Chat">
+                <img src="{{ url_for('static', path='icons/delete.png') }}" alt="Clear" style="width: 30px; height: 30px;">
+            </button>
+        </div>
+
+        <div id="chatHistory" class="chat-content">
+            <div class="chat-messages"></div>
+        </div>
+    </div>
+
+    <div class="chat-form-container">
+        <form id="chatForm" class="chat-form">
+            <div class="form-container">
+                <div class="input-area">
+                    <div class="text-area">
+                        <textarea id="userInput" tabindex="0" data-id="root" dir="auto" rows="1" placeholder="Enter diagram title or description" class="chat-input" required></textarea>
+                    </div>
+                    <button type="submit" class="send-button">
+                        <img src="{{ url_for('static', path='icons/send.png')}}" alt="Send" style="width: 24px; height: 24px;">
+                    </button>
+                </div>
+            </div>
+        </form>
+    </div>
+
+<script>
+    mermaid.initialize({ startOnLoad: true });
+
+    function addMessage(content, isUser = false, isLoading = false) {
+        const chatMessages = document.querySelector('.chat-messages');
+        const messageDiv = document.createElement('div');
+        messageDiv.className = `message ${isUser ? 'user-message' : 'ai-message'}`;
+        
+        if (!isUser) {
+            messageDiv.innerHTML = `
+                <div class="avatar">A</div>
+                <div class="message-content">${isLoading ? '<div class="loading"></div>' : content}</div>
+            `;
+        } else {
+            messageDiv.innerHTML = `
+                <div class="avatar">U</div>
+                <div class="message-content">${content}</div>
+            `;
+        }
+        
+        chatMessages.appendChild(messageDiv);
+        scrollChatToBottom();
+    }
+
+    function scrollChatToBottom() {
+        const chatMessages = document.querySelector('.chat-messages');
+        const chatHistory = document.getElementById('chatHistory');
+        const totalHeight = chatMessages.scrollHeight;
+        const visibleHeight = chatHistory.clientHeight;
+        const translateY = Math.max(0, totalHeight - visibleHeight);
+        chatMessages.style.transform = `translateY(-${translateY}px)`;
+    }
+
+    function setupZoom(diagram) {
+        let scale = 1; // Menginisialisasi skala awal menjadi normal
+        diagram.style.transformOrigin = '0 0';
+
+        diagram.addEventListener('wheel', function(event) {
+            event.preventDefault();
+            if (event.deltaY < 0) {
+                scale *= 1.1; // Zoom in
+            } else {
+                scale /= 1.1; // Zoom out
+            }
+            diagram.style.transform = `scale(${scale})`;
+        });
+    }
+
+    document.getElementById('chatForm').addEventListener('submit', async (e) => {
+        e.preventDefault();
+        const userInput = document.getElementById('userInput');
+        const userMessage = userInput.value.trim();
+
+        if (userMessage) {
+            addMessage(userMessage, true);
+            userInput.value = '';
+
+            addMessage('', false, true);
+
+            try {
+                const response = await fetch('/flowchart', {
+                    method: 'POST',
+                    headers: {
+                        'Content-Type': 'application/json',
+                    },
+                    body: JSON.stringify({ message: userMessage }),
+                });
+
+                if (!response.ok) {
+                    throw new Error('Network response was not ok');
+                }
+                const data = await response.json();
+                
+                const mermaidCode = data.response.match(/```mermaid\n([\s\S]*?)```/);
+                
+                let aiResponse = '';
+                if (mermaidCode && mermaidCode[1]) {
+                    let diagramCode = mermaidCode[1].trim();
+                    aiResponse = `Here's the UML diagram you requested:<div class="diagram-container"><div class="mermaid">${diagramCode}</div></div>`;
+                } else {
+                    aiResponse = '<div class="error">Unable to generate diagram. Please try again.</div>';
+                }
+
+                const loadingMessage = document.querySelector('.loading');
+                if (loadingMessage) {
+                    loadingMessage.parentElement.innerHTML = aiResponse;
+                }
+                
+                mermaid.contentLoaded();
+
+                const diagrams = document.querySelectorAll('.mermaid');
+                diagrams.forEach(diagram => {
+                    setupZoom(diagram);
+                });
+            } catch (error) {
+                console.error('Error:', error);
+                const loadingMessage = document.querySelector('.loading');
+                if (loadingMessage) {
+                    loadingMessage.parentElement.innerHTML = '<div class="error">An error occurred. Please try again.</div>';
+                }
+            }
+        }
+    });
+
+    document.getElementById('clearChatButton').addEventListener('click', () => {
+        Swal.fire({
+            title: 'Kamu Serius?',
+            text: "Beneran Kamu ingin hapus history!",
+            icon: 'warning',
+            showCancelButton: true,
+            confirmButtonColor: '#3085d6',
+            cancelButtonColor: '#d33',
+            confirmButtonText: 'Iya, hapus'
+        }).then((result) => {
+            if (result.isConfirmed) {
+                document.getElementById('chatHistory').innerHTML = '';
+                Swal.fire(
+                    'Berhasil',
+                    'History kamu sudah di hapus',
+                    'success'
+                )
+            }
+        });
+    });
+</script>
+
+<script src="{{ url_for('static', path='js/sweetalert2.all.min.js') }}"></script>
+{% endblock %}

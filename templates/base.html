@@ -1,0 +1,43 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>{% block title %}Chatbot{% endblock %}</title>
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/5.15.4/css/all.min.css">
+    <link rel="stylesheet" href="{{ url_for('static', path='css/style.css') }}">
+    <link rel="stylesheet" href="{{ url_for('static', path='css/bootstrap-icons.css') }}">
+    <link rel="stylesheet" href="{{ url_for('static', path='css/sweetalert2.min.css') }}">
+
+    <style>
+        
+    </style>
+    {% block head %}{% endblock %}
+</head>
+<body>
+    <div class="sidebar"> 
+        <h1 class="title">Chatbot UTM</h1>
+        <a href="/chat-ai" class="button">
+            <div class="logo"><img src="{{ url_for('static', path='icons/chatbot.png')}}" alt="Chatbot" style="width: 30px; height: 30px;"></div>
+            Chatbot-v2
+        </a>
+        <a href="/image-to-ui" class="button">
+            <div class="logo"><img src="{{ url_for('static', path='icons/ux.png')}}" alt="Flowchart" style="width: 30px; height: 30px;"></div>
+            Image to UI
+            <span class="new">NEW</span>
+        </a>
+        <a href="/flow-ai" class="button">
+            <div class="logo"><img src="{{ url_for('static', path='icons/flowchart.png')}}" alt="UX" style="width: 30px; height: 30px;"></div>
+            Diagram
+            <span class="new">NEW</span>
+        </a>
+    </div> 
+
+    <div class="content"> 
+        {% block content %}
+        {% endblock %}
+    </div>
+
+</body>
+<script src="{{ url_for('static', path='js/sweatalert.js')}}"></script>
+</html>
