@@ -32,6 +32,6 @@ docker eun -p 8000:8000 name_image
 ```
 
 ### how to get api-key
-(LINK GET API)[https://aistudio.google.com/app/apikey]
+[LINK GET API](https://aistudio.google.com/app/apikey)
 
  create API and paste in main.py
