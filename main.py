@@ -23,7 +23,7 @@ app.add_middleware(
 )
 
 # Configure the API key
-API_KEY = 'AIzaSyD1PslWHfLrrWPzYJecnVm52uJWZZiJe6g'
+API_KEY = 'secret-key'
 
 genai.configure(api_key=API_KEY)
 
